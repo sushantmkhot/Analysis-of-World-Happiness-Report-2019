@@ -1,0 +1,853 @@
+# ============================================================================
+
+#                   Analysis of World Happiness Report 2019
+
+# ============================================================================
+
+# 1. Introduction
+
+# The World Happiness Report is a landmark survey of the state of global happiness that ranks 156 countries by how happy their citizens perceive themselves to be.
+# The world is a rapidly changing place and happiness is something that everyone pursuits in the ever growing complicated world.
+# The United Nations Sustainable Development Solutions Network has been publishing the World Happiness report since 2012. This first report presented the available global data on national happiness and reviewed related evidence from the emerging science of happiness, showing that the quality of people's lives can be assessed by a variety of subjective well-being measures, collectively referred to then and in subsequent reports as "happiness."
+# Each report includes updated evaluations and a range of commissioned chapters on special topics digging deeper into the science of well-being, and on happiness in specific countries and regions.
+# We will try to do an Exploratory Data Analysis of the 2019 World Happiness Report. It contains rankings of national happiness based on respondent ratings of their own lives, which the report also correlates with various life factors.
+# 
+# ## Research Questions:
+# **Below are some questions we will expect to answer from our Analysis:**
+#   
+#   1. What factors contribute most to happiness of the country?
+#   2. Which factor is the key contributor for happiness of a country?
+#   3. Which factor is the least contributor to happiness of a country?
+#   4. Which region / continent is the happiest?
+#   5. Are countries lying in a certain region happier than other regions?
+#   6. How do negative attributes like corruption and negative affect impact the happiness of the country?
+
+# ------- 2. Preparing the Data -------
+
+#   Link to the dataset used for Analysis: https://www.kaggle.com/PromptCloudHQ/world-happiness-report-2019
+ 
+# _The data did not require any prior pre-processing and was available in a fairly clean .csv format._
+ 
+# ## Explanation of columns and variables
+ 
+# * **Country (region):** Name of the country.
+# * **Happiness Rank / Ladder:** Cantril Ladder is a measure of life satisfaction.
+# * **SD of Ladder:** Standard deviation of the ladder.
+# * **Positive affect:** Measure of positive emotion.
+# * **Negative affect:** Measure of negative emotion.
+# * **Social support:** The extent to which Social support contributed to the calculation of the Happiness Score.
+# * **Freedom:** The extent to which Freedom contributed to the calculation of the Happiness Score.
+# * **Corruption:** The extent to which Perception of Corruption contributes to Happiness Score.
+# * **Generosity:** The extent to which Generosity contributed to the calculation of the Happiness Score.
+# * **Log of GDP (per capita):** The extent to which GDP contributes to the calculation of the Happiness Score.
+# * **Healthy life expectancy:** The extent to which Life expectancy contributed to the calculation of the Happiness Score.
+
+# **Understanding the ranks in the dataset**
+   
+#   * **Positive Attributes (total 7)** 
+#   * There are 7 columns in the data set that indicate Positive Attributes: Happiness Rank / Ladder, Positive Affect, Social Support, Freedom, Generosity, Log of GDP, Healthy Life expectancy. 
+# * Lower number of these attributes indicate better score and greater impact on Happiness Score. 
+# * e.g. Singapore ranks # 1 in Healthy Life expectancy and the people think that it contributes a lot to their overall Happiness.
+# 
+# * **Negative Attributes (total 2)** 
+#   * There are 2 columns in the data set that indicate Negative Attributes: Negative Affect and Corruption. 
+# * Higher number of these attributes indicate worst score and greater negative impact on Happiness Score. 
+# * e.g. Moldova ranks # 148 in Corruption. This means that the people have indicated their Country has more corruption that affects their Happiness. 
+
+## R Libraries used for Analysis
+
+
+library(UsingR)
+library(plotly)
+library(ggplot2)
+library(corrplot)
+library(dplyr)
+library(tidyr)
+library(rworldmap)
+library(prob)
+library(sampling)
+library(RColorBrewer)
+
+
+## Steps to Import dataset into R
+
+# 1. Download the dataset from the source in .csv format and save it to the working directory:
+# 2. Import the dataset into a data frame from the working directory using the below R command:
+#   Note that we have renamed the columns of the data while importing into the data frame as part of cleaning process for the sake of simplicity.
+
+df.whr <- read.csv("world-happiness-report-2019.csv", 
+                   header = TRUE,
+                   col.names = c("Country", "Happiness.Rank", "SD.of.Ladder",
+                                 "Positive.Affect", "Negative.Affect",
+                                 "Social.Support", "Freedom", "Corruption",
+                                 "Generosity", "Log.of.GDP", "Healthy.Life"))
+
+
+# 3. Verify if import was done correctly by looking at a few rows using `head()` function:
+
+head(df.whr)
+
+
+# 4. Check the structure of the data frame using `str()` function:
+  
+str(df.whr)
+
+# 5. Total number of rows in dataset: 156
+
+df.tot.rows <- nrow(df.whr)
+
+
+# 6. We will now add a Continent column to the dataset for the respective Countries. This will be useful to analyze the data at the Continent / Region level.
+
+# Add Continent column:
+asia <- c("Israel", "United Arab Emirates", "Singapore", "Thailand", "Taiwan",
+          "Qatar", "Saudi Arabia", "Kuwait", "Bahrain", "Malaysia", "Uzbekistan", "Japan",
+          "South Korea", "Turkmenistan", "Kazakhstan", "Turkey", "Hong Kong", "Philippines",
+          "Jordan", "China", "Pakistan", "Indonesia", "Azerbaijan", "Lebanon", "Vietnam",
+          "Tajikistan", "Bhutan", "Kyrgyzstan", "Nepal", "Mongolia", "Palestinian Territories",
+          "Iran", "Bangladesh", "Myanmar", "Iraq", "Sri Lanka", "Armenia", "India", "Georgia",
+          "Cambodia", "Afghanistan", "Yemen", "Syria", "Laos")
+europe <- c("Norway", "Denmark", "Iceland", "Switzerland", "Finland",
+            "Netherlands", "Sweden", "Austria", "Ireland", "Germany",
+            "Belgium", "Luxembourg", "United Kingdom", "Czech Republic",
+            "Malta", "France", "Spain", "Slovakia", "Poland", "Italy",
+            "Russia", "Lithuania", "Latvia", "Moldova", "Romania",
+            "Slovenia", "Northern Cyprus", "Cyprus", "Estonia", "Belarus",
+            "Serbia", "Hungary", "Croatia", "Kosovo", "Montenegro",
+            "Greece", "Portugal", "Bosnia and Herzegovina", "Macedonia",
+            "Bulgaria", "Albania", "Ukraine")
+north.america <- c("Canada", "Costa Rica", "United States", "Mexico",  
+                   "Panama","Trinidad and Tobago", "El Salvador", "Guatemala",
+                   "Jamaica", "Nicaragua", "Dominican Republic", "Honduras",
+                   "Haiti")
+south.america <- c("Chile", "Brazil", "Argentina", "Uruguay",
+                   "Colombia", "Ecuador", "Bolivia", "Peru",
+                   "Paraguay", "Venezuela")
+australia <- c("New Zealand", "Australia")
+africa <- c("Libya", "Mauritius", "Nigeria", "Algeria", "Morocco", "Cameroon", "Ghana",
+            "Ivory Coast", "Benin", "Congo (Brazzaville)", "Gabon", "South Africa", "Senegal",
+            "Somalia", "Namibia", "Niger", "Burkina Faso", "Guinea", "Gambia", "Kenya", "Mauritania",
+            "Mozambique", "Tunisia", "Congo (Kinshasa)", "Mali", "Sierra Leone", "Chad", "Ethiopia",
+            "Swaziland", "Uganda", "Egypt", "Zambia", "Togo", "Liberia", "Comoros", "Madagascar",
+            "Lesotho", "Burundi", "Zimbabwe", "Botswana", "Malawi", "Rwanda", "Tanzania", "Central African Republic",
+            "South Sudan")
+
+df.whr$Continent <- NA
+df.whr[df.whr$Country %in% australia, ]$Continent <- "Australia"
+df.whr[df.whr$Country %in% africa, ]$Continent <- "Africa"
+df.whr[df.whr$Country %in% south.america, ]$Continent <- "South America"
+df.whr[df.whr$Country %in% north.america, ]$Continent <- "North America"
+df.whr[df.whr$Country %in% europe, ]$Continent <- "Europe"
+df.whr[df.whr$Country %in% asia, ]$Continent <- "Asia"
+
+
+# 7. Update the levels of factor variable Country in order of Happiness Rank / Ladder so that the levels of the factor variable Country is aligned to the Happiness rank of the country.
+
+df.whr$Country <- factor(df.whr$Country, levels = df.whr[["Country"]])
+
+# 8. From the dataset, we can now extract the Top 10 Happiest countries and store them in a smaller size dataframe:
+  
+top10.df.whr <- df.whr[1:10, ]
+top10.df.whr[1:2]
+
+# 9. Similarly, we will extract the Bottom 10 Unhappy countries and store them in another smaller size dataframe:
+  
+bottom10.df.whr <- df.whr[(df.tot.rows-9):df.tot.rows, ]
+bottom10.df.whr[1:2]
+
+
+# 10. We will now identify Countries / Rows with at least 1 null value which indicate number of empty values / columns for the corresponding country.
+# Using the missing values column, we will create another dataframe with only the Countries that have values in all the columns. 
+# This step is required to have a dataframe for appropriate plots that will not be impacted due to missing values.
+# The total number of rows in this dataframe without missing values is 139.
+
+df.whr$MissingData <- rowSums(is.na(df.whr))
+df.whr.notNA <- subset(df.whr, df.whr$MissingData == 0)
+df.whr.notNA$MissingData <- NULL
+
+
+# ------- 3. Analyzing the Data -------
+
+# We have categorized our analysis between All Countries (with no missing values), Top 10 and Bottom 10 ranking Countries and Continents / Regions.
+
+## All Countries
+
+# We will first understand the attributes that contributes the most and least to the Happiness of a Country. To do that, we will try to plot a correlation matrix of all attributes.
+
+### Correlation matrix: All attributes
+
+corrplot(cor(df.whr.notNA[ , c(-1, -3, -12)]), method = "number")
+
+
+# From the above plot, we conclude below:  
+#   
+#   * Social Support, Healthy Life expectancy and Log of GDP contribute the **most** to a better Happiness rank of the Country.  
+# 
+#   * Corruption has the **least** correlation to Happiness rank of a Country. As the sense of Corruption in people gets higher, the Happiness of the Country will lower.  
+# 
+#   * Log of GDP and Healthy Life expectancy are the most correlated attributes to each other.  
+
+### Top contributors
+# We will prove the correlation analysis by plotting the pairs plot below: 
+  
+#  * Notice that Happiness Rank of a Country gets linearly impacted by the Social Support, Healthy Life expectancy and Log of GDP of the Country.
+
+plot(df.whr.notNA[ , c(2, 6, 10, 11)])
+
+
+### Least contributors
+# * Similarly, We see that the sense of Corruption and Negative emotion of the people affect the Happiness Score. They do not contribute to a better Happiness Rank.
+
+plot(df.whr.notNA[ , c(2, 5, 8)])
+
+
+## Top 10 vs Bottom 10
+
+# We will now conduct our analysis on Top 10 happiest and Bottom 10 unhappy Countries. We will try to understand how different aspects of a Country impacts its Happiness score.
+
+# **Numerical Variable: Positive Affect ** 
+  
+# **Categorical Variable: Country** 
+  
+#  * The plot will display the ranking of Positive Emotion in the people of the Country that contributes to their Happiness. 
+#  * Smaller number of the Positive Affect rank indicates that it has contributed more to the Happiness of that Country. 
+
+top10.positive.bar <- plot_ly(top10.df.whr, y = ~Country, x = ~Positive.Affect, 
+                              type = 'bar', name = 'Top 10') %>% 
+  layout(title = "Barplot of Positive Emotion",
+         yaxis = list(title = 'Country', autorange = "reversed"),
+         xaxis = list(title = 'Positive Affect'))
+
+bot10.positive.bar <- plot_ly(bottom10.df.whr, y = ~Country, x = ~Positive.Affect, 
+                              type = 'bar', name = 'Bottom 10') %>% 
+  layout(title = "Positive Emotion",
+         yaxis = list(title = 'Country'),
+         xaxis = list(title = 'Positive Affect'))
+
+
+subplot(
+  top10.positive.bar,
+  bot10.positive.bar,
+  nrows = 2,
+  shareX = TRUE
+)
+
+
+# * By looking at these 2 plots, we can compare Top 10 ranked Countries in Happiness and the Bottom 10 ranked Countries. 
+# * We can clearly see that people from the Happiest countries have given higher rank to the Positive Emotion in them as compared to the Bottom 10 countries.
+
+### Plot All Attributes
+
+# We will now try to plot all attributes of the Top 10 and Bottom 10 countries.
+
+top10.all <- plot_ly(top10.df.whr, x = ~Country, y = ~Positive.Affect, 
+                     type = 'bar', name = 'Positive Affect')
+top10.all <- top10.all %>% add_trace(y = ~Negative.Affect, name = 'Negative Affect')
+top10.all <- top10.all %>% add_trace(y = ~Social.Support, name = 'Social Support')
+top10.all <- top10.all %>% add_trace(y = ~Freedom, name = 'Freedom')
+top10.all <- top10.all %>% add_trace(y = ~Corruption, name = 'Corruption')
+top10.all <- top10.all %>% add_trace(y = ~Generosity, name = 'Generosity')
+top10.all <- top10.all %>% add_trace(y = ~Log.of.GDP, name = 'Log of GDP')
+top10.all <- top10.all %>% add_trace(y = ~Healthy.Life, name = 'Healthy Life')
+top10.all <- top10.all %>% layout(title = "Top 10: All Attributes",
+                                  xaxis = list(title = 'Country'),
+                                  yaxis = list(range=c(0,1200),
+                                               title = 'Count'),
+                                  barmode = 'stack')
+top10.all
+
+
+
+bot10.all <- plot_ly(bottom10.df.whr, x = ~Country, y = ~Positive.Affect, 
+                     type = 'bar', name = 'Positive Affect')
+bot10.all <- bot10.all %>% add_trace(y = ~Negative.Affect, name = 'Negative Affect')
+bot10.all <- bot10.all %>% add_trace(y = ~Social.Support, name = 'Social Support')
+bot10.all <- bot10.all %>% add_trace(y = ~Freedom, name = 'Freedom')
+bot10.all <- bot10.all %>% add_trace(y = ~Corruption, name = 'Corruption')
+bot10.all <- bot10.all %>% add_trace(y = ~Generosity, name = 'Generosity')
+bot10.all <- bot10.all %>% add_trace(y = ~Log.of.GDP, name = 'Log of GDP')
+bot10.all <- bot10.all %>% add_trace(y = ~Healthy.Life, name = 'Healthy Life')
+bot10.all <- bot10.all %>% layout(title = "Bottom 10: All Attributes",
+                                  xaxis = list(title = 'Country'),
+                                  yaxis = list(range=c(0,1200), title = 'Count'),
+                                  barmode = 'stack')
+bot10.all
+
+
+# * From this we conclude that Countries that have a good Happiness rank have consistent good ranks across their individual attributes. 
+# * We do observe some outliers like Negative Emotion is higher in Canada, however its Healthy Life expectancy and sense of Freedom increase its Happiness Rank.
+# * Similarly, in the Bottom 10 list, we see Haiti and Rwanda having very good sense of Generosity and Freedom respectively among the people. However, their other factors like Log of GDP and Social Support bring down their Happiness rank.
+
+### Boxplot: Comparison of all Attributes
+
+# * Here we can point out the outliers in the various attributes of the Countries. 
+# * We can see that sense of Freedom is spread out over the scale indicating people have different opinions on the sense of Freedom in their respective Countries.
+# * The same behaviour is seen for Negative Emotion and Generosity.
+
+top10.df.whr <- top10.df.whr  %>% mutate(Level = "Top10")
+bottom10.df.whr <- bottom10.df.whr  %>% mutate(Level = "Bottom10")
+comparison <- bind_rows(top10.df.whr, bottom10.df.whr)
+comparison$Level <- as.factor(comparison$Level)
+comparison <- transform(comparison, Level = factor(Level, levels = c("Top10", "Bottom10" )))
+
+comparison.score <- comparison %>% gather(key = "columns", value = "score", Happiness.Rank:Healthy.Life)
+comparison.score %>% 
+  ggplot(aes(x = Level, y = score, colour = Level, fill = Level)) + 
+  geom_boxplot(position=position_dodge(width=1)) + facet_wrap(~columns, scales = "free")
+
+
+# * We conclude here that spread of Happiness rank is similar to Log of GDP and Healthy Life expectancy indicating that the Happiness score of the Top 10 countries are impacted by these attributes.
+
+## Continents
+
+# We will now analyze how the Happiness score is impacted by Continents or Geographical presence of the Countries.
+
+# We have plot below the distribution of some key attributes that impact the Happiness score.
+
+df.notNA.Africa <- subset(df.whr.notNA, df.whr.notNA$Continent == "Africa")
+df.notNA.Asia <- subset(df.whr.notNA, df.whr.notNA$Continent == "Asia")
+df.notNA.Aus <- subset(df.whr.notNA, df.whr.notNA$Continent == "Australia")
+df.notNA.Europe <- subset(df.whr.notNA, df.whr.notNA$Continent == "Europe")
+df.notNA.NorthAm <- subset(df.whr.notNA, df.whr.notNA$Continent == "North America")
+df.notNA.SouthAm <- subset(df.whr.notNA, df.whr.notNA$Continent == "South America")
+
+
+### Distributions
+
+# **Log of GDP**
+  
+#  * The Log of GDP distribution is having higher or worst scores in the African, Asian and South American continent. 
+
+#  * Europe and Australian continent seem to have better scores for Log Of GDP compared to other continents.
+
+#  * The Log of GDP scores vary a lot in the North American countries.
+
+par(mfrow=c(3,2))
+
+# Africa
+plot(df.notNA.Africa$Log.of.GDP, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "deepskyblue2", main = "Africa: Log of GDP")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Africa$Log.of.GDP), df.notNA.Africa$Log.of.GDP, pch = 16) 
+abline(h = 0, col="red")
+
+# Asia
+plot(df.notNA.Asia$Log.of.GDP, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "deepskyblue2", main = "Asia: Log of GDP")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Asia$Log.of.GDP), df.notNA.Asia$Log.of.GDP, pch = 16) 
+abline(h = 0, col="red")
+
+# Europe
+plot(df.notNA.Europe$Log.of.GDP, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "deepskyblue2", main = "Europe: Log of GDP")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Europe$Log.of.GDP), df.notNA.Europe$Log.of.GDP, pch = 16) 
+abline(h = 0, col="red")
+
+# Australia
+plot(df.notNA.Aus$Log.of.GDP, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "deepskyblue2", main = "Australia: Log of GDP")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Aus$Log.of.GDP), df.notNA.Aus$Log.of.GDP, pch = 16) 
+abline(h = 0, col="red")
+
+# North America
+plot(df.notNA.NorthAm$Log.of.GDP, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "deepskyblue2", main = "North America: Log of GDP")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.NorthAm$Log.of.GDP), df.notNA.NorthAm$Log.of.GDP, pch = 16) 
+abline(h = 0, col="red")
+
+# South America
+plot(df.notNA.SouthAm$Log.of.GDP, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "deepskyblue2", main = "South America: Log of GDP")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.SouthAm$Log.of.GDP), df.notNA.SouthAm$Log.of.GDP, pch = 16) 
+abline(h = 0, col="red")
+
+par(mfrow=c(1,1))
+
+
+# **Healthy life expectancy**  
+  
+#  * Healthy Life expectancy follows almost similar distribution to Log of GDP.  
+
+#  * This indicates the correlation between the 2 attributes is very linear.  
+
+#  * We see that again Africa seems to have the worst Healthy Life expectancy scores while Europe and Australian continents have the best scores.  
+
+
+par(mfrow=c(3,2))
+
+# Africa
+plot(df.notNA.Africa$Healthy.Life, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "forestgreen", main = "Africa: Healthy Life expectancy")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Africa$Healthy.Life), df.notNA.Africa$Healthy.Life, pch = 16) 
+abline(h = 0, col="red")
+
+# Asia
+plot(df.notNA.Asia$Healthy.Life, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "forestgreen", main = "Asia: Healthy Life expectancy")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Asia$Healthy.Life), df.notNA.Asia$Healthy.Life, pch = 16) 
+abline(h = 0, col="red")
+
+# Europe
+plot(df.notNA.Europe$Healthy.Life, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "forestgreen", main = "Europe: Healthy Life expectancy")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Europe$Healthy.Life), df.notNA.Europe$Healthy.Life, pch = 16) 
+abline(h = 0, col="red")
+
+# Australia
+plot(df.notNA.Aus$Healthy.Life, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "forestgreen", main = "Australia: Healthy Life expectancy")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Aus$Healthy.Life), df.notNA.Aus$Healthy.Life, pch = 16) 
+abline(h = 0, col="red")
+
+# North America
+plot(df.notNA.NorthAm$Healthy.Life, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "forestgreen", main = "North America: Healthy Life expectancy")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.NorthAm$Healthy.Life), df.notNA.NorthAm$Healthy.Life, pch = 16) 
+abline(h = 0, col="red")
+
+# South America
+plot(df.notNA.SouthAm$Healthy.Life, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "forestgreen", main = "South America: Healthy Life expectancy")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.SouthAm$Healthy.Life), df.notNA.SouthAm$Healthy.Life, pch = 16) 
+abline(h = 0, col="red")
+
+par(mfrow=c(1,1))
+
+
+# **Corruption** 
+  
+#  * The Corruption attribute seems to vary a lot in all the continents. 
+
+#  * However, Europe and Australian continents have lot of low corruption scores. 
+
+
+par(mfrow=c(3,2))
+
+# Africa
+plot(df.notNA.Africa$Corruption, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "firebrick2", main = "Africa: Corruption")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Africa$Corruption), df.notNA.Africa$Corruption, pch = 16) 
+abline(h = 0, col="red")
+
+# Asia
+plot(df.notNA.Asia$Corruption, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "firebrick2", main = "Asia: Corruption")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Asia$Corruption), df.notNA.Asia$Corruption, pch = 16) 
+abline(h = 0, col="red")
+
+# Europe
+plot(df.notNA.Europe$Corruption, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "firebrick2", main = "Europe: Corruption")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Europe$Corruption), df.notNA.Europe$Corruption, pch = 16) 
+abline(h = 0, col="red")
+
+# Australia
+plot(df.notNA.Aus$Corruption, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "firebrick2", main = "Australia: Corruption")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Aus$Corruption), df.notNA.Aus$Corruption, pch = 16) 
+abline(h = 0, col="red")
+
+# North America
+plot(df.notNA.NorthAm$Corruption, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "firebrick2", main = "North America: Corruption")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.NorthAm$Corruption), df.notNA.NorthAm$Corruption, pch = 16) 
+abline(h = 0, col="red")
+
+# South America
+plot(df.notNA.SouthAm$Corruption, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "firebrick2", main = "South America: Corruption")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.SouthAm$Corruption), df.notNA.SouthAm$Corruption, pch = 16) 
+abline(h = 0, col="red")
+
+par(mfrow=c(1,1))
+
+
+# **Negative Affect**  
+  
+# * The Negative Emotion varies a lot in Asia and Europe.  
+
+# * The other continents namely Africa and South America have some higher Negative emotion scores.  
+
+par(mfrow=c(3,2))
+
+# Africa
+plot(df.notNA.Africa$Negative.Affect, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "maroon4", main = "Africa: Negative Affect")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Africa$Negative.Affect), df.notNA.Africa$Negative.Affect, pch = 16) 
+abline(h = 0, col="red")
+
+# Asia
+plot(df.notNA.Asia$Negative.Affect, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "maroon4", main = "Asia: Negative Affect")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Asia$Negative.Affect), df.notNA.Asia$Negative.Affect, pch = 16) 
+abline(h = 0, col="red")
+
+# Europe
+plot(df.notNA.Europe$Negative.Affect, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "maroon4", main = "Europe: Negative Affect")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Europe$Negative.Affect), df.notNA.Europe$Negative.Affect, pch = 16) 
+abline(h = 0, col="red")
+
+# Australia
+plot(df.notNA.Aus$Negative.Affect, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "maroon4", main = "Australia: Negative Affect")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.Aus$Negative.Affect), df.notNA.Aus$Negative.Affect, pch = 16) 
+abline(h = 0, col="red")
+
+# North America
+plot(df.notNA.NorthAm$Negative.Affect, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "maroon4", main = "North America: Negative Affect")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.NorthAm$Negative.Affect), df.notNA.NorthAm$Negative.Affect, pch = 16) 
+abline(h = 0, col="red")
+
+# South America
+plot(df.notNA.SouthAm$Negative.Affect, type = "h",
+     xlim = c(0, 46), ylim = c(0, 156),
+     xaxt = "n", yaxt = "n",
+     xlab = "x", ylab = "Rank",
+     col = "maroon4", main = "South America: Negative Affect")
+axis(side = 1, at = 0:46, labels = TRUE)
+axis(side = 2, at = seq(0, 156, 10), labels = TRUE)
+points(1:length(df.notNA.SouthAm$Negative.Affect), df.notNA.SouthAm$Negative.Affect, pch = 16) 
+abline(h = 0, col="red")
+
+par(mfrow=c(1,1))
+
+
+# * We conclude that Europe, Australia and North American Countries are among the Happiest countries and continents in that order.
+# * Africa is the least happy continent in the world followed by Asia.
+
+### Boxplot of Happiness Rank
+# * The conclusion above in the distributions can be confirmed by the plot below. 
+# * Europe, Australia, North America and South America are closest to the lower (better) scores.
+# * Haiti is the outlier in North American continent with higher unhappy Score.
+# * Africa and Asia are above the mean Happiness Score.
+
+bp.cont <- plot_ly(df.whr.notNA, x = ~df.whr.notNA[df.whr.notNA$Continent == "Asia" , 2], type="box", name = 'Asia')
+bp.cont <- add_trace(bp.cont, x = ~df.whr.notNA[df.whr.notNA$Continent == "Africa" , 2], name = 'Africa')
+bp.cont <- add_trace(bp.cont, x = ~df.whr.notNA[df.whr.notNA$Continent == "Australia" , 2], name = 'Australia')
+bp.cont <- add_trace(bp.cont, x = ~df.whr.notNA[df.whr.notNA$Continent == "Europe" , 2], name = 'Europe')
+bp.cont <- add_trace(bp.cont, x = ~df.whr.notNA[df.whr.notNA$Continent == "North America" , 2], name = 'North America')
+bp.cont <- add_trace(bp.cont, x = ~df.whr.notNA[df.whr.notNA$Continent == "South America" , 2], name = 'South America')
+bp.cont <- bp.cont %>% layout(title = "Happiness Rank by Continent",
+                              yaxis = list(title = "Continent"),
+                              xaxis = list(title = "Rank"))
+bp.cont
+
+
+### Happiness Rank: World Map
+# * The below intensity map of the Happiness score will indicate that lighter the color of the country, the Happier it is in the world.
+# * We clearly see that Europe, Australia, North and South America are the Happiest continents. 
+# * **Finland** ranks # 1 in the Happiness Score while **South Sudan** is the least Happy Country in the World.
+
+ddf <- subset(df.whr[c("Country","Happiness.Rank")])
+spdf <- joinCountryData2Map(ddf, joinCode="NAME", nameJoinColumn="Country")
+mapCountryData(spdf, nameColumnToPlot="Happiness.Rank", catMethod="fixedWidth")
+
+
+## Sampling:
+
+### Demonstrate Central Limit Theorem
+
+# **We will use numerical variable: Happiness Rank**
+  
+#  * **Original dataset distribution**
+  
+  
+hist(df.whr.notNA$Happiness.Rank, prob = TRUE, 
+     col = "skyblue",
+     xlab = "x",
+     ylab = "Density",
+     ylim = c(0, 0.01),
+     xlim = c(0,165),
+     xaxt = "n",
+     yaxt = "n",
+     breaks = 30,
+     main = paste("Happiness Rank Dist."))
+axis(side = 1, at = seq(from = 0, to = 165, by = 5))
+axis(side = 2, at = seq(from = 0, to = 0.01, by = 0.001))
+
+
+# * We will now draw 100 samples from the dataset (with no missing column values).  
+
+# * We will then take 10, 20, 30 and 40 mean value samples and plot them to demonstrate the Central Limit Theorem.  
+
+set.seed(6118)
+par(mfrow = c(2,2))
+
+samples <- 1000
+xbar <- numeric(samples)
+mean <- numeric(4)
+sd <- numeric(4)
+cntr <- 1
+
+for (size in c(10, 20, 30, 40)) {
+  for (i in 1:samples) {
+    xbar[i] <- mean(sample(df.whr.notNA$Happiness.Rank, size, replace = TRUE))
+  }
+  
+  hist(xbar, prob = TRUE, 
+       col = "skyblue",
+       xlab = "x",
+       ylab = "Density",
+       ylim = c(0, 0.06),
+       xlim = c(0,150),
+       xaxt = "n",
+       yaxt = "n",
+       main = paste("Sample Size =", size))
+  axis(side = 1, at = seq(from = 0, to = 150, by = 5))
+  axis(side = 2, at = seq(from = 0, to = 1, by = 0.01))
+  
+  mean[cntr] <- mean(xbar)
+  sd[cntr] <- sd(xbar)
+  cntr <- cntr + 1
+}
+
+par(mfrow = c(1,1))
+
+paste("Sample Size = ", c(10, 20, 30, 40), " Mean = ", round(mean, 2), " SD = ", round(sd, 2))
+
+
+# * With 1000 samples we can see that the different mean value samples form a normal distribution plot.
+
+# * As the Sample size increases, we see that the mean of the sample means remain almost same. However, the Standard Deviation keeps getting smaller indicating that the Normal distribution plot keeps getting narrower. 
+
+
+### Sampling methods
+
+#### **1. Simple Random Sampling:**
+
+# * In this sampling method we will pull 20 random samples from the dataset (with no missing column values).  
+
+# * We will perform the sampling without replacement.  
+
+set.seed(6118)
+
+N <- nrow(df.whr.notNA)
+n <- 20
+
+samp <- srswor(n, N)
+
+samples2 <- df.whr.notNA[samp != 0, ]
+
+samples2
+
+
+# * We will plot a correlation matrix to analyze if our conclusions change based on the sample.
+
+corrplot(cor(samples2[ , c(-1, -3, -12)]), method = "number")
+
+
+# From the above plot, we conclude below:
+#   
+# * Our original conclusions have remained intact.
+# 
+# * Social Support, Healthy Life expectancy and Log of GDP are still the **most** contributing factors for a better Happiness Score.
+# 
+# * We do see that Countries in the selected sample have higher Negative Affect correlation to Happiness Rank.
+# 
+# * Log of GDP and Healthy Life expectancy are still the most correlated attributes in the selected sample.
+
+
+#### **2. Systematic Sampling:**
+
+# * In this sampling method, we will pull 20 random samples from the dataset (with no missing column values).  
+# 
+# * We will perform the sampling without replacement.
+# 
+# * It so happens that we will take the 7th row from the dataset to form the sample dataset.  
+
+set.seed(6118)
+
+N <- nrow(df.whr.notNA)
+n <- 20
+
+# items in each group
+k <- ceiling(N / n)
+
+# random item from first group
+r <- sample(k, 1)
+
+# select every kth item
+s <- seq(r, by = k, length = n)
+samples3 <- df.whr.notNA[s, ]
+
+samples3
+
+
+# * We will plot a correlation matrix to analyze if our conclusions change based on the sample.
+
+corrplot(cor(samples3[ , c(-1, -3, -12)]), method = "number")
+
+
+# From the above plot, we conclude below:
+#   
+# * Our original conclusions have remained intact.
+# 
+# * Social Support, Healthy Life expectancy and Log of GDP are still the **most** contributing factors for a better Happiness Score.
+# 
+# * We do see that Countries in the selected sample have lower Corruption correlation that indicate that there are some of the high Corruption ranking countries in the selected sample.
+# 
+# * Log of GDP and Healthy Life expectancy are still the most correlated attributes in the selected sample.
+
+
+#### **3. Stratified Sampling:**
+
+# * In the stratified sampling process, we will Order the dataset (with no missing column values) by the Continent name.
+# 
+# * We will then pull 40 proportional samples based on the number of Countries belonging to the respective Continents and create our sample dataset.  
+# 
+# * We will perform the sampling with replacement. 
+
+n <- 40
+
+# Ordering of data based on Continent:
+order.index <- order(df.whr.notNA$Continent)
+ordered.countries <- df.whr.notNA[order.index, ]
+
+freq4 <- table(ordered.countries$Continent)
+
+st.sizes <- n * freq4 / sum(freq4)
+st.sizes <- round(st.sizes)
+
+st <- sampling::strata(ordered.countries, stratanames = c("Continent"),
+                       size = st.sizes, method = "srswr",
+                       description = TRUE)
+samples4 <- getdata(ordered.countries, st)
+
+samples4
+
+# * We will plot a correlation matrix to analyze if our conclusions change based on the sample.
+
+corrplot(cor(samples4[ , c(-1, -3, -12:-15)]), method = "number")
+
+
+# From the above plot, we conclude below:
+#   
+# * Our original conclusions have remained intact.
+# 
+# * Social Support, Healthy Life expectancy and Log of GDP are still the **most** contributing factors for a better Happiness Score.
+# 
+# * Log of GDP and Healthy Life expectancy are still the most correlated attributes in the selected sample.
+
+
+# 4. Conclusion
+
+# 1. The positive factors Social Support, Healthy Life expectancy and Log of GDP contribute most to happiness of the Country.
+# 2. Corruption is least contributor to a better Happiness score of a Country. This means that higher the sense of Corruption among the people, lower the Happiness of the Country.
+# 3. Europe and Australian continents are the Happiest while African countries are on the least Happy score in the world.
+# 4. The Western Countries are Happier than the Eastern Countries.
